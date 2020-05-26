@@ -49,7 +49,7 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
                node_size=20, node_range=[None,None], node_alpha=1, node_cmap=None, node_labels=False,
                link_width=1, link_range=[None,None], link_alpha=1, link_cmap=None, link_labels=False,
                valve_layer=None, add_colorbar=True, node_colorbar_label='Node', link_colorbar_label='Link', 
-               directed=False, ax=None, filename=None):
+               directed=False, ax=None, filename=None, plot_center=None,plot_limits=None):
     """
     Plot network graphic
 
@@ -95,8 +95,9 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
     node_cmap : matplotlib.pyplot.cm colormap or list of named colors, optional
         Node colormap 
         
-    node_labels: bool, optional
+    node_labels: bool, list optional
         If True, the graph will include each node labelled with its name. 
+        If list, the graph will include only node labels in the list
         
     link_width : int, optional
         Link width
@@ -111,7 +112,8 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
         Link colormap
         
     link_labels: bool, optional
-        If True, the graph will include each link labelled with its name. 
+        If True, the graph will include each link labelled with its name.
+        If list, the graph will only include link labels in the list.
         
     add_colorbar : bool, optional
         Add colorbar
@@ -128,6 +130,17 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
     ax : matplotlib axes object, optional
         Axes for plotting (None indicates that a new figure with a single 
         axes will be used)
+        
+    filename : str, optional
+        Path and file name to a grahpics output png file of the axes plotted
+        by this function (None indicates to not output a file).
+        
+    plot_center : str or 2-list/tuple, optional 
+        str = name of link/node in the wn water network to center the plot about
+        2-list/tuple = x-y coordinates 
+        Either of these recenter the plot and reduce 
+                  
+    plot_limits  : float, 2-list/tuple - window (horiz,vert) about plot_center  
         
     Returns
     -------
@@ -210,7 +223,7 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
     
     if title is not None:
         ax.set_title(title)
-        
+    
     edge_background = nx.draw_networkx_edges(G, pos, edge_color='grey', 
                                              width=0.5, ax=ax)
     
@@ -225,10 +238,13 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
         labels = dict(zip(wn.node_name_list, wn.node_name_list))
         nx.draw_networkx_labels(G, pos, labels, font_size=7, ax=ax)
     if link_labels:
-        labels = {}
-        for link_name in wn.link_name_list:
-            link = wn.get_link(link_name)
-            labels[(link.start_node_name, link.end_node_name)] = link_name
+        # you must verify that these line up
+        labels = dict(zip([(link.start_node_name,
+                            link.end_node_name) for name,link in wn.links],
+                          [name for name,link in wn.links]))
+#        for link_name in wn.link_name_list:
+#            link = wn.get_link(link_name)
+#            labels[(link.start_node_name, link.end_node_name)] = link_name
         nx.draw_networkx_edge_labels(G, pos, labels, font_size=7, ax=ax)
     if add_node_colorbar and node_attribute:
         clb = plt.colorbar(nodes, shrink=0.5, pad=0, ax=ax)
@@ -257,7 +273,49 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
             valve_coordinates = (x0 + dx * 0.1,
                                      y0 + dy * 0.1)
             ax.scatter(valve_coordinates[0], valve_coordinates[1], 15, 'r', 'v')   
-     
+    
+    if plot_center:
+        # derive the length of x and y on the screen.
+        incorrect_input_string = ("The 'plot_center' input must be a list or" 
+                                 + " tuple of length 2, a node name or a link"
+                                 + " name in the input water network model!")
+        if not plot_limits:
+            xlim = ax.get_xlim()
+            len_x = xlim[1] - xlim[0]
+            ylim = ax.get_ylim()
+            len_y = ylim[1] - ylim[0]
+        else:
+            len_x = plot_limits[0]
+            len_y = plot_limits[1]
+            
+        if isinstance(plot_center,list):
+            if len(plot_center) == 2:
+                center = plot_center
+            else:
+                raise ValueError(incorrect_input_string)
+        else:
+            if plot_center in wn.node_name_list:
+                center_node = wn.get_node(plot_center)
+                center = center_node.coordinates
+            elif plot_center in wn.link_name_list:
+                center_link = wn.get_link(plot_center)
+                start_coord = center_link.start_node.coordinates
+                end_coord = center_link.end_node.coordinates
+                center = [(start_coord[0] + end_coord[0]) / 2.0,
+                          (start_coord[1] + end_coord[1]) / 2.0]
+            else:
+                raise ValueError(incorrect_input_string)
+                
+        ax.set_xlim((center[0] - len_x/2, center[0] + len_x/2))
+        ax.set_ylim((center[1] - len_y/2, center[1] + len_y/2))
+            
+            
+    else:
+        if plot_limits:
+            raise ValueError("The plot_limits input must be used in" 
+                             +" coordination with the plot_center input!")
+    
+    
     if filename:
         plt.savefig(filename)
         
