@@ -2475,6 +2475,15 @@ class LinkRegistry(Registry):
             False if the pipe does not have a check valve.
         
         """
+        def x_le_0(x,name):
+            if x <= 0.0:
+                raise ValueError("The '" + name + "' input must be greater than 0.0!")
+        # input checking
+        x_le_0(length,"length")
+        x_le_0(diameter,"diameter")
+        x_le_0(roughness,"roughness")
+        
+        
         length = float(length)
         diameter = float(diameter)
         roughness = float(roughness)

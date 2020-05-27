@@ -140,7 +140,7 @@ def _split_or_break_pipe(wn, pipe_name_to_split, new_pipe_name,
         wn2 = wn
     
     pipe = wn2.get_link(pipe_name_to_split)
-    
+
     # Do sanity checks
     if not isinstance(pipe, Pipe):
         raise ValueError('You can only split pipes.')

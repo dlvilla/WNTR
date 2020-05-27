@@ -1,6 +1,7 @@
 from nose.tools import *
 from nose import SkipTest
 from os.path import abspath, dirname, join
+from matplotlib import pyplot as plt
 import numpy as np
 import networkx as nx
 import wntr
@@ -135,6 +136,71 @@ def test_Net1_MultiDiGraph():
 
     assert_dict_contains_subset(node, G.nodes)
     assert_dict_contains_subset(edge, G.adj)
+    
+def test_plot_center():
+    inp_file = join(netdir,'Net3.inp')
+    wn = wntr.network.WaterNetworkModel(inp_file)
+    
+    # no plot limits input
+    fig, ax = plt.subplots(1,1)
+    wntr.graphics.network.plot_network(wn,plot_center=(25,12),ax=ax)
+    plt.close(fig)
+    
+    # direct coordinate input
+    fig, ax = plt.subplots(1,1)
+    wntr.graphics.network.plot_network(wn,plot_center=(25,12),plot_limits=(10,10),ax=ax)
+    assert_equal(ax.get_xlim(),(20.0,30.0))
+    assert_equal(ax.get_ylim(),(7.0,17.0))
+    plt.close(fig)
+    
+    # link input
+    fig, ax = plt.subplots(1,1)
+    plot_limit_val = (16,8)
+    wntr.graphics.network.plot_network(wn,plot_center='309',
+                                       plot_limits=plot_limit_val,
+                                       ax=ax,
+                                       link_labels=['309'])
+    node_265_coord = (25.39,13.60)
+    node_267_coord = (23.38,12.95)
+    center = [(n265 + n267)/2 for n265,n267 in zip(node_265_coord,node_267_coord)]
+        
+    assert_equal(ax.get_xlim(),(center[0]-0.5*plot_limit_val[0],
+                                center[0]+0.5*plot_limit_val[0]))
+    assert_equal(ax.get_ylim(),(center[1]-0.5*plot_limit_val[1],
+                                center[1]+0.5*plot_limit_val[1]))
+    plt.close(fig)
+    
+    # node input
+    fig, ax = plt.subplots(1,1)
+    linknames = wn.get_links_for_node('61')
+    wntr.graphics.network.plot_network(wn,plot_center='61',plot_limits=(10,10),
+                                       ax=ax,node_labels=['61'],
+                                       link_labels=linknames)    
+    assert_equal(ax.get_xlim(),(23.71-5.0,23.71+5.0))
+    assert_equal(ax.get_ylim(),(29.03-5.0,29.03+5.0))
+    plt.close(fig)
+    
+    # ValueError exceptions
+    with assert_raises(ValueError):
+        # too long of plot_center input
+        wntr.graphics.network.plot_network(wn,plot_center=(25,12,10),plot_limits=(10,10),ax=ax)
+    
+    with assert_raises(ValueError):
+        # incorrect object
+        wntr.graphics.network.plot_network(wn,plot_center=wn,plot_limits=(10,10),ax=ax)
+    
+    with assert_raises(ValueError):
+        # plot_limits too many inputs
+        wntr.graphics.network.plot_network(wn,plot_center=(25,12),plot_limits=(10,10,10),ax=ax)  
+    
+    with assert_raises(ValueError):
+        # plot_limits incorrect type input
+        wntr.graphics.network.plot_network(wn,plot_center=(25,12),plot_limits=ax,ax=ax) 
+        
+    with assert_raises(ValueError):
+        # plot_limits input with no plot_center
+        wntr.graphics.network.plot_network(wn,plot_limits=(10,10),ax=ax)  
 
 if __name__ == '__main__':
     test_weight_graph()
+    test_plot_center()

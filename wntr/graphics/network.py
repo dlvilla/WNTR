@@ -111,7 +111,7 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
     link_cmap : matplotlib.pyplot.cm colormap or list of named colors, optional
         Link colormap
         
-    link_labels: bool, optional
+    link_labels: bool, list optional
         If True, the graph will include each link labelled with its name.
         If list, the graph will only include link labels in the list.
         
@@ -138,7 +138,8 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
     plot_center : str or 2-list/tuple, optional 
         str = name of link/node in the wn water network to center the plot about
         2-list/tuple = x-y coordinates 
-        Either of these recenter the plot and reduce 
+        Either of these recenter the plot and change the viewed window.
+        If a link and node share the same name, then the node will be the center.
                   
     plot_limits  : float, 2-list/tuple - window (horiz,vert) about plot_center  
         
@@ -235,13 +236,22 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
             edge_color=linkcolor, width=link_width, alpha=link_alpha, edge_cmap=link_cmap, 
             edge_vmin=link_range[0], edge_vmax=link_range[1], ax=ax)
     if node_labels:
-        labels = dict(zip(wn.node_name_list, wn.node_name_list))
+        if isinstance(node_labels,(list,tuple)):
+            labels = dict(zip(node_labels,node_labels))
+        else:
+            labels = dict(zip(wn.node_name_list, wn.node_name_list))
         nx.draw_networkx_labels(G, pos, labels, font_size=7, ax=ax)
     if link_labels:
-        # you must verify that these line up
-        labels = dict(zip([(link.start_node_name,
-                            link.end_node_name) for name,link in wn.links],
-                          [name for name,link in wn.links]))
+        if isinstance(link_labels,(list,tuple)):
+            links = [wn.get_link(name) for name in link_labels]
+            labels = dict(zip([(link.start_node_name,
+                            link.end_node_name) for link in links],
+                            [linkname for linkname in link_labels]))
+        else:
+            links = [wn.get_link(name) for name in wn.links]
+            labels = dict(zip([(link.start_node_name,
+                            link.end_node_name) for link in links],
+                          [name for name in wn.links]))
 #        for link_name in wn.link_name_list:
 #            link = wn.get_link(link_name)
 #            labels[(link.start_node_name, link.end_node_name)] = link_name
@@ -274,25 +284,40 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
                                      y0 + dy * 0.1)
             ax.scatter(valve_coordinates[0], valve_coordinates[1], 15, 'r', 'v')   
     
+    # provide a way to focus in on a single node/link or coordinate and to
+    # zoom in
     if plot_center:
         # derive the length of x and y on the screen.
-        incorrect_input_string = ("The 'plot_center' input must be a list or" 
-                                 + " tuple of length 2, a node name or a link"
-                                 + " name in the input water network model!")
+        incorrect_input_string = ("The '{0}' input must be a list or" 
+                                 + " tuple of length 2{1}")
+        plot_center_string1 = (", a node name or a link"
+                                 + " name in the input water network model!") 
         if not plot_limits:
             xlim = ax.get_xlim()
             len_x = xlim[1] - xlim[0]
             ylim = ax.get_ylim()
             len_y = ylim[1] - ylim[0]
         else:
-            len_x = plot_limits[0]
-            len_y = plot_limits[1]
+            if isinstance(plot_limits,(list,tuple)):
+                if len(plot_limits) == 1:
+                    len_x = plot_limits[0]
+                    len_y = plot_limits[1]
+                elif len(plot_limits) == 2:
+                    len_x = plot_limits[0]
+                    len_y = plot_limits[1]
+                else:
+                    raise ValueError(incorrect_input_string.format("plot_limits",", or a float."))
+            elif isinstance(plot_limits,float):
+                len_x = plot_limits
+                len_y = plot_limits
+            else:
+                raise ValueError(incorrect_input_string.format("plot_limits",", or a float."))
             
-        if isinstance(plot_center,list):
+        if isinstance(plot_center,(list,tuple)):
             if len(plot_center) == 2:
                 center = plot_center
             else:
-                raise ValueError(incorrect_input_string)
+                raise ValueError(incorrect_input_string.format("plot_center",plot_center_string1))
         else:
             if plot_center in wn.node_name_list:
                 center_node = wn.get_node(plot_center)
@@ -304,7 +329,7 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
                 center = [(start_coord[0] + end_coord[0]) / 2.0,
                           (start_coord[1] + end_coord[1]) / 2.0]
             else:
-                raise ValueError(incorrect_input_string)
+                raise ValueError(incorrect_input_string.format("plot_center",plot_center_string1))
                 
         ax.set_xlim((center[0] - len_x/2, center[0] + len_x/2))
         ax.set_ylim((center[1] - len_y/2, center[1] + len_y/2))
@@ -314,7 +339,7 @@ def plot_network(wn, node_attribute=None, link_attribute=None, title=None,
         if plot_limits:
             raise ValueError("The plot_limits input must be used in" 
                              +" coordination with the plot_center input!")
-    
+    # end of plot_center code.
     
     if filename:
         plt.savefig(filename)
