@@ -1,4 +1,3 @@
-from __future__ import print_function
 import unittest
 import sys
 from os.path import abspath, dirname, join
@@ -7,7 +6,7 @@ import pandas
 pandas.set_option('display.max_rows', 10000)
 
 testdir = dirname(abspath(str(__file__)))
-test_networkdir = join(testdir,'networks_for_testing')
+test_datadir = join(testdir,'networks_for_testing')
 ex_datadir = join(testdir,'..','..','examples','networks')
 results_dir = join(testdir,'performance_results')
 
@@ -42,7 +41,7 @@ class TestPerformance(unittest.TestCase):
         flow_diff_abs_threshold = 1e-5
         rel_threshold = 1e-3
         
-        inp_file = join(test_networkdir, 'Anytown_multipointcurves.inp')
+        inp_file = join(test_datadir, 'Anytown_multipointcurves.inp')
         wn = self.wntr.network.WaterNetworkModel(inp_file)
 
         # Apply a curve that is very fine along H = a - b * Q ** c and 
@@ -98,6 +97,27 @@ class TestPerformance(unittest.TestCase):
         epa_sim = self.wntr.sim.EpanetSimulator(wn)
         epa_res = epa_sim.run_sim()
 
+        sim = self.wntr.sim.WNTRSimulator(wn)
+        results = sim.run_sim()
+
+        self.assertTrue(compare_results(results.node['head'], epa_res.node['head'], head_diff_abs_threshold, rel_threshold))
+        self.assertTrue(compare_results(results.node['demand'].loc[:, wn.tank_name_list], epa_res.node['demand'].loc[:, wn.tank_name_list], demand_diff_abs_threshold, rel_threshold))
+        self.assertTrue(compare_results(results.link['flowrate'], epa_res.link['flowrate'], flow_diff_abs_threshold, rel_threshold))
+
+    def test_Net3_performance_PDA(self):
+        head_diff_abs_threshold = 1e-3
+        demand_diff_abs_threshold = 1e-5
+        flow_diff_abs_threshold = 1e-5
+        rel_threshold = 1e-3
+
+        inp_file = join(ex_datadir, 'Net3.inp')
+        wn = self.wntr.network.WaterNetworkModel(inp_file)
+        wn.options.hydraulic.demand_model = 'PDA'
+
+        epa_sim = self.wntr.sim.EpanetSimulator(wn)
+        epa_res = epa_sim.run_sim(version=2.2)
+
+        wn.options.hydraulic.demand_model = 'PDA'
         sim = self.wntr.sim.WNTRSimulator(wn)
         results = sim.run_sim()
 
